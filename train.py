@@ -92,20 +92,43 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         
         # print("image shape is", image.permute(2, 1, 0).shape)
-        plt.imsave("test_output/image.jpg", image.permute(2, 1, 0).cpu().detach().numpy());
+
+        plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
+
+        instance_image = render_pkg["instance_render"]
+        gt_instance_image = viewpoint_cam.instance_image.cuda()
+        print("gt: ", torch.unique(gt_instance_image))
+        print("it: ", torch.unique(instance_image))
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+
+        Ll1_instance = l1_loss(instance_image, gt_instance_image)
+        lambda_instance_loss = 0.2
+
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + lambda_instance_loss*Ll1_instance
+
+        print(f"Instance loss is {Ll1_instance}")
         loss.backward()
 
-        gt_instance_image = viewpoint_cam.instance_image.cuda()
 
-        print("Got instance gt image!!, ", torch.unique(gt_instance_image), gt_instance_image.shape)
-        to_pil = ToPILImage()
-        image_bw = to_pil(gt_instance_image)
-        image_bw.save("test_output/instance_image.jpg")
+
+        print("instance image shape: ", instance_image.shape)
+        # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
+        def export_instance_image(image):
+            # print(torch.unique(image))
+            image = image / torch.max(image)
+            # print(torch.unique(image))
+            # print(torch.max(image))
+            to_pil = ToPILImage()
+            image_bw = to_pil(image)
+            image_bw.save("test_output/instance_image.jpg")
+
+        export_instance_image(instance_image.cpu().detach())
+        # export_instance_image(gt_instance_image)
+
+
 
         # plt.imsave("test_output/image.jpg", gt_instance_image.permute(2, 1, 0).cpu().detach().numpy(), cmap="gray");
         # plt.imsave("test_output/instance_image.jpg", image, cmap="gray");

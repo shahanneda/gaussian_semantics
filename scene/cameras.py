@@ -38,7 +38,7 @@ class Camera(nn.Module):
 
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
 
-        self.instance_image = instance_image.clamp(0.0, 1.0).to(self.data_device)
+        self.instance_image = (instance_image.clamp(0.0, 1.0)*100).to(self.data_device)
 
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
