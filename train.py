@@ -22,6 +22,10 @@ from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
+import matplotlib.pyplot as plt
+from torchvision.transforms import ToPILImage
+
+
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -86,11 +90,25 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
+        
+        # print("image shape is", image.permute(2, 1, 0).shape)
+        plt.imsave("test_output/image.jpg", image.permute(2, 1, 0).cpu().detach().numpy());
+
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
         loss.backward()
+
+        gt_instance_image = viewpoint_cam.instance_image.cuda()
+
+        print("Got instance gt image!!, ", torch.unique(gt_instance_image), gt_instance_image.shape)
+        to_pil = ToPILImage()
+        image_bw = to_pil(gt_instance_image)
+        image_bw.save("test_output/instance_image.jpg")
+
+        # plt.imsave("test_output/image.jpg", gt_instance_image.permute(2, 1, 0).cpu().detach().numpy(), cmap="gray");
+        # plt.imsave("test_output/instance_image.jpg", image, cmap="gray");
 
         iter_end.record()
 
