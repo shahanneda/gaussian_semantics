@@ -93,12 +93,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         
         # print("image shape is", image.permute(2, 1, 0).shape)
 
-        plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
 
         instance_image = render_pkg["instance_render"]
         gt_instance_image = viewpoint_cam.instance_image.cuda()
         print("gt: ", torch.unique(gt_instance_image))
-        print("it: ", torch.unique(instance_image))
+        # print("it: ", torch.unique(instance_image))
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
@@ -109,12 +108,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + lambda_instance_loss*Ll1_instance
 
-        print(f"Instance loss is {Ll1_instance}")
+        # print(f"Instance loss is {Ll1_instance}")
         loss.backward()
 
-
-
-        print("instance image shape: ", instance_image.shape)
+        # print("instance image shape: ", instance_image.shape)
         # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
         def export_instance_image(image):
             # print(torch.unique(image))
@@ -123,9 +120,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # print(torch.max(image))
             to_pil = ToPILImage()
             image_bw = to_pil(image)
-            image_bw.save("test_output/instance_image.jpg")
+            image_bw.save(f"test_output/instance_image_{iteration}.jpg")
 
-        export_instance_image(instance_image.cpu().detach())
+        if iteration % 1000 == 0:
+            plt.imsave(f"test_output/image_{iteration}.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
+            export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
 
 

@@ -106,8 +106,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 
         
         # print(f"images folder {images_folder}\n")
-        print(f"loading image with {instance_image_path}\n")
-        print(f"loading image with {images_folder}\n")
+        # print(f"loading image with {instance_image_path}\n")
+        # print(f"loading image with {images_folder}\n")
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                               image_path=image_path, image_name=image_name, width=width, height=height,
