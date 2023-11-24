@@ -17,6 +17,7 @@ from utils.sh_utils import eval_sh, RGB2SH
 from torchvision.transforms.functional import rgb_to_grayscale
 
 
+NUM_INSTANCES = 5
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
     """
     Render the scene. 
@@ -96,31 +97,35 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
 
     # Rasterize instance gaussain
-    instance_shs = torch.zeros_like(shs)
-    instance_shs[:, 0] = RGB2SH(pc.get_instance)
     # instance_shs[:, 1] = pc.get_instance
     # instance_shs[:, 2] = pc.get_instance
 
-    rendered_instance_image, radii = rasterizer(
-        means3D = means3D,
-        means2D = means2D,
-        shs = instance_shs,
-        colors_precomp = None,
-        opacities = torch.ones_like(opacity),
-        scales = scales,
-        rotations = rotations,
-        cov3D_precomp = cov3D_precomp)
+    instance_images = []
+    for i in range(NUM_INSTANCES):
+        instance_shs = torch.zeros_like(shs)
+        instance_nums = pc.get_instance.T[i].reshape((-1, 1))
+        # print(instance_nums.shape)
+        instance_shs[:, 0] = RGB2SH(instance_nums)
+        rendered_instance_image, radii = rasterizer(
+            means3D = means3D,
+            means2D = means2D,
+            shs = instance_shs,
+            colors_precomp = None,
+            opacities = torch.ones_like(opacity),
+            scales = scales,
+            rotations = rotations,
+            cov3D_precomp = cov3D_precomp)
+        rendered_instance_image = rgb_to_grayscale(rendered_instance_image)
+        rendered_instance_image = torch.clip(rendered_instance_image, 0, 1)
+        instance_images.append(rendered_instance_image)
 
-    # TODO: consider changing this
-    rendered_instance_image = rgb_to_grayscale(rendered_instance_image)
-    rendered_instance_image = torch.clip(rendered_instance_image, 0, 1)
 
 
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.
     return {"render": rendered_image,
-            "instance_render": rendered_instance_image,
+            "instance_images": instance_images,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
             "radii": radii}

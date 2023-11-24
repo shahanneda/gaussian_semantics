@@ -94,9 +94,43 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         
         # print("image shape is", image.permute(2, 1, 0).shape)
 
+        def export_instance_image(image, i):
+            # print(torch.unique(image))
+            image = image / torch.max(image)
+            # print(torch.unique(image))
+            # print(torch.max(image))
+            to_pil = ToPILImage()
+            image_bw = to_pil(image)
+            image_bw.save(f"test_output/instance_image-{i}.jpg")
 
-        instance_image = render_pkg["instance_render"]
         gt_instance_image = viewpoint_cam.instance_image.cuda()
+        gt_labels = torch.flatten(gt_instance_image, 1, 2)
+        gt_labels = gt_labels * 4
+        gt_labels = gt_labels.to(torch.int64)
+        gt_labels = gt_labels.reshape((-1))
+
+        # print(torch.unique(gt_labels))
+
+
+        instance_images = render_pkg["instance_images"]
+        if iteration % 200 == 0:
+            plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
+            for i, instance_image in enumerate(instance_images):
+                # print(instance_image.shape)
+                export_instance_image(instance_image, i)
+        
+        instance_tensor = torch.cat(instance_images)
+        instance_tensor = instance_tensor.flatten(1, 2)
+        instance_tensor = instance_tensor.T
+
+
+        # print(gt_labels.shape)
+        # print(instance_tensor.shape)
+        instance_cel = torch.nn.CrossEntropyLoss()
+        instance_loss = instance_cel(instance_tensor, gt_labels)
+
+
+        
 
         # print(f"mean instnace {torch.mean(gaussians.get_instance)} max instance {torch.max(gaussians.get_instance)} mode ins {torch.mode(gaussians.get_instance)}")
         # print(f"ins min {torch.min(instance_image)}")
@@ -109,28 +143,21 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
 
-        Ll1_instance = l1_loss(instance_image, gt_instance_image)
+        # Ll1_instance = l1_loss(instance_image, gt_instance_image)
+        # Ll1_instance = 0 
         lambda_instance_loss = 0.2
 
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + lambda_instance_loss*Ll1_instance
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + lambda_instance_loss*instance_loss
 
         # print(f"Instance loss is {Ll1_instance}")
         loss.backward()
 
         # print("instance image shape: ", instance_image.shape)
         # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
-        def export_instance_image(image):
-            # print(torch.unique(image))
-            image = image / torch.max(image)
-            # print(torch.unique(image))
-            # print(torch.max(image))
-            to_pil = ToPILImage()
-            image_bw = to_pil(image)
-            image_bw.save(f"test_output/instance_image.jpg")
 
-        if iteration % 5 == 0:
-            plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
-            export_instance_image(instance_image.cpu().detach())
+        # if iteration % 5 == 0:
+            # plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
+            # export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
 
 

@@ -60,6 +60,7 @@ class GaussianModel:
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
+        self.num_categories = 5
 
     def capture(self):
         return (
@@ -149,7 +150,7 @@ class GaussianModel:
 
         # TODO: consider removing activationg function
         # instances = inverse_sigmoid(torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
-        instances = torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")
+        instances = torch.zeros((fused_point_cloud.shape[0], self.num_categories), dtype=torch.float, device="cuda")
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
         self._features_dc = nn.Parameter(features[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
@@ -213,7 +214,12 @@ class GaussianModel:
         f_rest = self._features_rest.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         # TODO: add saving of instances here
-        instance = (torch.sigmoid(self._instance.detach().cpu()).numpy())
+        instances_raw = torch.sigmoid(self._instance.detach())
+        instance = torch.argmax(instances_raw, dim=1).reshape((-1, 1)).cpu().numpy()
+        # print("SHAPE IS", instance.shape)
+        # print("O SHAPE IS",opacities.shape)
+
+
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
 
