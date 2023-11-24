@@ -121,7 +121,7 @@ class GaussianModel:
 
     @property
     def get_instance(self):
-        return self._instance
+        return self.instance_activation(self._instance)
     
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
@@ -213,7 +213,7 @@ class GaussianModel:
         f_rest = self._features_rest.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         # TODO: add saving of instances here
-        instance = self._instance.detach().cpu().numpy()
+        instance = (torch.sigmoid(self._instance.detach().cpu()).numpy())
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
 

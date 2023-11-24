@@ -13,7 +13,7 @@ import torch
 import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from scene.gaussian_model import GaussianModel
-from utils.sh_utils import eval_sh
+from utils.sh_utils import eval_sh, RGB2SH
 from torchvision.transforms.functional import rgb_to_grayscale
 
 
@@ -97,9 +97,9 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     # Rasterize instance gaussain
     instance_shs = torch.zeros_like(shs)
-    instance_shs[:, 0] = pc.get_instance
-    instance_shs[:, 1] = pc.get_instance
-    instance_shs[:, 2] = pc.get_instance
+    instance_shs[:, 0] = RGB2SH(pc.get_instance)
+    # instance_shs[:, 1] = pc.get_instance
+    # instance_shs[:, 2] = pc.get_instance
 
     rendered_instance_image, radii = rasterizer(
         means3D = means3D,

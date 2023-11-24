@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 from torchvision.transforms import ToPILImage
 
 
+output_path = ""
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -96,7 +97,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         instance_image = render_pkg["instance_render"]
         gt_instance_image = viewpoint_cam.instance_image.cuda()
-        print("gt: ", torch.unique(gt_instance_image))
+
+        # print(f"mean instnace {torch.mean(gaussians.get_instance)} max instance {torch.max(gaussians.get_instance)} mode ins {torch.mode(gaussians.get_instance)}")
+        # print(f"ins min {torch.min(instance_image)}")
+        # print(f"ins max {torch.max(instance_image)}")
+        # print(f"ins unique {torch.unique(instance_image)}")
+        # print("gt: ", torch.unique(gt_instance_image))
         # print("it: ", torch.unique(instance_image))
 
         # Loss
@@ -120,10 +126,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # print(torch.max(image))
             to_pil = ToPILImage()
             image_bw = to_pil(image)
-            image_bw.save(f"test_output/instance_image_{iteration}.jpg")
+            image_bw.save(f"test_output/instance_image.jpg")
 
-        if iteration % 1000 == 0:
-            plt.imsave(f"test_output/image_{iteration}.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
+        if iteration % 5 == 0:
+            plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
             export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
 
@@ -178,6 +184,10 @@ def prepare_output_and_logger(args):
         else:
             unique_str = str(uuid.uuid4())
         args.model_path = os.path.join("./output/", unique_str[0:10])
+
+        # TODO: remove this
+        global output_path
+        output_path = args.model_path
         
     # Set up output folder
     print("Output folder: {}".format(args.model_path))
@@ -259,4 +269,4 @@ if __name__ == "__main__":
     training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
 
     # All done
-    print("\nTraining complete.")
+    print(f"\nTraining complete. Saved to {output_path}")
