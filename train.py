@@ -34,11 +34,13 @@ except ImportError:
     TENSORBOARD_FOUND = False
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
-    do_instance_only = True
+    do_instance_only = False
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = GaussianModel(dataset.sh_degree)
-    scene = Scene(dataset, gaussians)
+    # gaussians = GaussianModel(dataset.sh_degree)
+    scene = Scene(dataset)
+
+    gaussians = scene.gaussians
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -63,9 +65,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         image_bw = to_pil(image)
         image_bw.save(f"test_output/instance_image-{i}.jpg")
 
-    if do_instance_only:
-        print("Doing instance optimization only!")
-        for iteration in range(first_iter, opt.iterations + 1):        
+    def do_instance_iterations(iterations=100):
+        for iteration in range(iterations):
+            viewpoint_stack = None
             if not viewpoint_stack:
                 viewpoint_stack = scene.getTrainCameras().copy()
             viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
@@ -78,13 +80,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             gt_instance_image = viewpoint_cam.instance_image.cuda()
             export_instance_image(gt_instance_image, 5)
             gt_labels = torch.flatten(gt_instance_image, 1, 2)
-            gt_labels = gt_labels * 4
+        # print(torch.unique(gt_labels))
+            # gt_labels = gt_labels * 4
             gt_labels = gt_labels.to(torch.int64)
             gt_labels = gt_labels.reshape((-1))
 
             # print(instance_images[2])
 
-            if iteration % 1 == 0:
+            if iteration % 2 == 0:
                 for i, instance_image in enumerate(instance_images):
                     export_instance_image(instance_image, i)
 
@@ -94,16 +97,25 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             instance_cel = torch.nn.CrossEntropyLoss()
             instance_loss = instance_cel(instance_tensor, gt_labels)
             instance_loss.backward()
-            print(f"Iteration: {iteration}", instance_loss)
+            print(f"Doing Instance Iteration: {iteration}", instance_loss)
             with torch.no_grad():
                     gaussians.instance_optimizer.step()
                     gaussians.instance_optimizer.zero_grad(set_to_none = True)
 
-            if (iteration in saving_iterations):
-                print("\n[ITER {}] Saving Gaussians".format(iteration))
-                scene.save(iteration)
+    # do_instance_iterations()
+    # scene.save(1000)
+    # print(f"\nTraining complete. Saved to {output_path}")
+    # if do_instance_only:
+    #     print("Doing instance optimization only!")
+    #     for iteration in range(first_iter, opt.iterations + 1):        
+    #         if (iteration in saving_iterations):
+    #             print("\n[ITER {}] Saving Gaussians".format(iteration))
+    #             scene.save(iteration)
 
-    if not do_instance_only:
+    if do_instance_only:
+        do_instance_iterations(1000)
+        print(f"\nTraining complete. Saved to {output_path}")
+        scene.save(1000)
         return
 
     # torch.autograd.set_detect_anomaly(True)
@@ -167,11 +179,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # print("instance image shape: ", instance_image.shape)
         # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
 
-        if iteration % 5 == 0:
+        if iteration % 200 == 0:
             plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
             # plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
             # export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
+
+        if iteration > 200 and iteration % 200 == 0:
+            do_instance_iterations()
 
 
 

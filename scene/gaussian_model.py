@@ -43,7 +43,7 @@ class GaussianModel:
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree : int):
+    def __init__(self, sh_degree : int, num_categories):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
@@ -60,7 +60,8 @@ class GaussianModel:
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
-        self.num_categories = 5
+        self.num_categories = num_categories
+        print("num catogries are:", num_categories)
 
     def capture(self):
         return (
@@ -154,6 +155,7 @@ class GaussianModel:
         # TODO: consider removing activationg function
         # instances = inverse_sigmoid(torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
         instances = torch.zeros((fused_point_cloud.shape[0], self.num_categories), dtype=torch.float, device="cuda")
+        print(instances.shape)
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
         self._features_dc = nn.Parameter(features[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
@@ -449,6 +451,9 @@ class GaussianModel:
         new_features_dc = self._features_dc[selected_pts_mask].repeat(N,1,1)
         new_features_rest = self._features_rest[selected_pts_mask].repeat(N,1,1)
         new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
+
+        # TODO: fix this to be number of catogries instead!!!
+        print("DOING DENSIFY RN, should fix this todo")
         new_instance = self._instance[selected_pts_mask].repeat(N, 1)
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacity, new_instance, new_scaling, new_rotation)

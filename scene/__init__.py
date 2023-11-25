@@ -12,23 +12,26 @@
 import os
 import random
 import json
+from scene.cameras import Camera
 from utils.system_utils import searchForMaxIteration
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from typing import Union,TypeVar
+
 
 class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : Union[GaussianModel, None] = None, load_iteration=None, shuffle=True, resolution_scales=[1.0]):
         """b
         :param path: Path to colmap scene main folder.
         """
         self.model_path = args.model_path
         self.loaded_iter = None
-        self.gaussians = gaussians
+        
 
         if load_iteration:
             if load_iteration == -1:
@@ -74,6 +77,13 @@ class Scene:
             self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
             print("Loading Test Cameras")
             self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
+        
+
+        if gaussians:
+            self.gaussians = gaussians
+        else:
+            print(f"Number of instance catgories is: {Camera.number_instance_categories}")
+            self.gaussians = GaussianModel(args.sh_degree, Camera.number_instance_categories)
 
         if self.loaded_iter:
             self.gaussians.load_ply(os.path.join(self.model_path,

@@ -12,9 +12,19 @@
 import torch
 from torch import nn
 import numpy as np
+from utils.general_utils import PILtoTorch
 from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 
 class Camera(nn.Module):
+    instance_number_to_index = torch.tensor([])
+    number_instance_categories = 0
+
+    @staticmethod
+    def process_instance_image(instance_image):
+        combined_unique_values = torch.unique(torch.cat((Camera.instance_number_to_index, torch.unique(instance_image))))
+        Camera.instance_number_to_index = combined_unique_values
+        Camera.number_instance_categories = list(combined_unique_values.size())[0]
+
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
                  image_name, uid, instance_image,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
@@ -38,7 +48,15 @@ class Camera(nn.Module):
 
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
 
-        self.instance_image = (instance_image / torch.max(instance_image)).to(self.data_device)
+
+        print("Instance Image Unique")
+        print(Camera.instance_number_to_index)
+        instance_image_indexes = torch.searchsorted(Camera.instance_number_to_index, instance_image)
+        print(torch.unique(instance_image_indexes))
+        # print(instance_image_indexes.shape)
+
+        # self.instance_image = (instance_image / torch.max(instance_image)).to(self.data_device)
+        self.instance_image = instance_image_indexes.to(self.data_device)
 
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]

@@ -16,7 +16,7 @@ from utils.graphics_utils import fov2focal
 
 WARNED = False
 
-def loadCam(args, id, cam_info, resolution_scale):
+def loadCam(args, id, cam_info, resolution_scale, instance_only=False):
     orig_w, orig_h = cam_info.image.size
 
     if args.resolution in [1, 2, 4, 8]:
@@ -45,10 +45,16 @@ def loadCam(args, id, cam_info, resolution_scale):
     # print("reszied_instance", resized_image_instance.shape)
     gt_image = resized_image_rgb[:3, ...]
     gt_instance_image = resized_image_instance[:1, ...]
+
     loaded_mask = None
 
     if resized_image_rgb.shape[1] == 4:
         loaded_mask = resized_image_rgb[3:4, ...]
+
+
+    if instance_only:
+        Camera.process_instance_image(gt_instance_image)
+        return
 
     return Camera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY, 
@@ -57,10 +63,15 @@ def loadCam(args, id, cam_info, resolution_scale):
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
+    cam_infos_to_use = cam_infos[26:28]
 
-    # print("TODO: remove first 10 processing!!")
-    for id, c in enumerate(cam_infos[:10]):
-    # for id, c in enumerate(cam_infos[:1]):
+    print("TODO: remove first 10 processing!!")
+    # for id, c in enumerate(cam_infos[:10]):
+    for id, c in enumerate(cam_infos_to_use):
+        loadCam(args, id, c, resolution_scale, instance_only=True)
+        # Camera.process_instance_image(c)
+
+    for id, c in enumerate(cam_infos_to_use):
     # for id, c in enumerate(cam_infos):
         camera_list.append(loadCam(args, id, c, resolution_scale))
 
