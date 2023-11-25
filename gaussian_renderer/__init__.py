@@ -18,7 +18,7 @@ from torchvision.transforms.functional import rgb_to_grayscale
 
 
 NUM_INSTANCES = 5
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, should_do_instance=False):
     """
     Render the scene. 
     
@@ -85,15 +85,17 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         colors_precomp = override_color
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
-    rendered_image, radii = rasterizer(
-        means3D = means3D,
-        means2D = means2D,
-        shs = shs,
-        colors_precomp = colors_precomp,
-        opacities = opacity,
-        scales = scales,
-        rotations = rotations,
-        cov3D_precomp = cov3D_precomp)
+    rendered_image, radii = None, 0
+    if not should_do_instance:
+        rendered_image, radii = rasterizer(
+            means3D = means3D,
+            means2D = means2D,
+            shs = shs,
+            colors_precomp = colors_precomp,
+            opacities = opacity,
+            scales = scales,
+            rotations = rotations,
+            cov3D_precomp = cov3D_precomp)
 
 
     # Rasterize instance gaussain
@@ -101,23 +103,25 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # instance_shs[:, 2] = pc.get_instance
 
     instance_images = []
-    for i in range(NUM_INSTANCES):
-        instance_shs = torch.zeros_like(shs)
-        instance_nums = pc.get_instance.T[i].reshape((-1, 1))
-        # print(instance_nums.shape)
-        instance_shs[:, 0] = RGB2SH(instance_nums)
-        rendered_instance_image, radii = rasterizer(
-            means3D = means3D,
-            means2D = means2D,
-            shs = instance_shs,
-            colors_precomp = None,
-            opacities = torch.ones_like(opacity),
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)
-        rendered_instance_image = rgb_to_grayscale(rendered_instance_image)
-        rendered_instance_image = torch.clip(rendered_instance_image, 0, 1)
-        instance_images.append(rendered_instance_image)
+    if should_do_instance:
+        for i in range(NUM_INSTANCES):
+            instance_shs = torch.zeros_like(shs)
+            instance_nums = pc.get_instance.T[i].reshape((-1, 1))
+            # print(instance_nums.shape)
+            instance_shs[:, 0] = RGB2SH(instance_nums)
+            rendered_instance_image, radii = rasterizer(
+                means3D = means3D,
+                means2D = means2D,
+                shs = instance_shs,
+                colors_precomp = None,
+                # opacities = torch.full_like(opacity, 1),
+                opacities = opacity,
+                scales = scales,
+                rotations = rotations,
+                cov3D_precomp = cov3D_precomp)
+            rendered_instance_image = rgb_to_grayscale(rendered_instance_image)
+            # rendered_instance_image = torch.clip(rendered_instance_image, 0, 1)
+            instance_images.append(rendered_instance_image)
 
 
 

@@ -34,6 +34,7 @@ except ImportError:
     TENSORBOARD_FOUND = False
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
+    do_instance_only = True
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
@@ -53,6 +54,59 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
+    def export_instance_image(image, i):
+        # print(torch.unique(image))
+        image = image / torch.max(image)
+        # print(torch.unique(image))
+        # print(torch.max(image))
+        to_pil = ToPILImage()
+        image_bw = to_pil(image)
+        image_bw.save(f"test_output/instance_image-{i}.jpg")
+
+    if do_instance_only:
+        print("Doing instance optimization only!")
+        for iteration in range(first_iter, opt.iterations + 1):        
+            if not viewpoint_stack:
+                viewpoint_stack = scene.getTrainCameras().copy()
+            viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
+            bg = torch.rand((3), device="cuda") if opt.random_background else background
+            render_pkg = render(viewpoint_cam, gaussians, pipe, bg, should_do_instance=True)
+            instance_images = render_pkg["instance_images"]
+
+            # print(torch.unique(gaussians.get_instance))
+            # print(gaussians.get_instance)
+            gt_instance_image = viewpoint_cam.instance_image.cuda()
+            export_instance_image(gt_instance_image, 5)
+            gt_labels = torch.flatten(gt_instance_image, 1, 2)
+            gt_labels = gt_labels * 4
+            gt_labels = gt_labels.to(torch.int64)
+            gt_labels = gt_labels.reshape((-1))
+
+            # print(instance_images[2])
+
+            if iteration % 1 == 0:
+                for i, instance_image in enumerate(instance_images):
+                    export_instance_image(instance_image, i)
+
+            instance_tensor = torch.cat(instance_images)
+            instance_tensor = instance_tensor.flatten(1, 2)
+            instance_tensor = instance_tensor.T
+            instance_cel = torch.nn.CrossEntropyLoss()
+            instance_loss = instance_cel(instance_tensor, gt_labels)
+            instance_loss.backward()
+            print(f"Iteration: {iteration}", instance_loss)
+            with torch.no_grad():
+                    gaussians.instance_optimizer.step()
+                    gaussians.instance_optimizer.zero_grad(set_to_none = True)
+
+            if (iteration in saving_iterations):
+                print("\n[ITER {}] Saving Gaussians".format(iteration))
+                scene.save(iteration)
+
+    if not do_instance_only:
+        return
+
+    # torch.autograd.set_detect_anomaly(True)
     for iteration in range(first_iter, opt.iterations + 1):        
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -70,67 +124,22 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 network_gui.conn = None
 
         iter_start.record()
-
         gaussians.update_learning_rate(iteration)
-
         # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
             gaussians.oneupSHdegree()
-
         # Pick a random Camera
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras().copy()
         viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
-
         # Render
         if (iteration - 1) == debug_from:
             pipe.debug = True
-
         bg = torch.rand((3), device="cuda") if opt.random_background else background
-
-        render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
+        render_pkg = render(viewpoint_cam, gaussians, pipe, bg, should_do_instance=False)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
-        
         # print("image shape is", image.permute(2, 1, 0).shape)
-
-        def export_instance_image(image, i):
-            # print(torch.unique(image))
-            image = image / torch.max(image)
-            # print(torch.unique(image))
-            # print(torch.max(image))
-            to_pil = ToPILImage()
-            image_bw = to_pil(image)
-            image_bw.save(f"test_output/instance_image-{i}.jpg")
-
-        gt_instance_image = viewpoint_cam.instance_image.cuda()
-        gt_labels = torch.flatten(gt_instance_image, 1, 2)
-        gt_labels = gt_labels * 4
-        gt_labels = gt_labels.to(torch.int64)
-        gt_labels = gt_labels.reshape((-1))
-
-        # print(torch.unique(gt_labels))
-
-
-        instance_images = render_pkg["instance_images"]
-        if iteration % 200 == 0:
-            plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
-            for i, instance_image in enumerate(instance_images):
-                # print(instance_image.shape)
-                export_instance_image(instance_image, i)
-        
-        instance_tensor = torch.cat(instance_images)
-        instance_tensor = instance_tensor.flatten(1, 2)
-        instance_tensor = instance_tensor.T
-
-
-        # print(gt_labels.shape)
-        # print(instance_tensor.shape)
-        instance_cel = torch.nn.CrossEntropyLoss()
-        instance_loss = instance_cel(instance_tensor, gt_labels)
-
-
-        
 
         # print(f"mean instnace {torch.mean(gaussians.get_instance)} max instance {torch.max(gaussians.get_instance)} mode ins {torch.mode(gaussians.get_instance)}")
         # print(f"ins min {torch.min(instance_image)}")
@@ -138,24 +147,28 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # print(f"ins unique {torch.unique(instance_image)}")
         # print("gt: ", torch.unique(gt_instance_image))
         # print("it: ", torch.unique(instance_image))
-
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
 
         # Ll1_instance = l1_loss(instance_image, gt_instance_image)
         # Ll1_instance = 0 
-        lambda_instance_loss = 0.2
+        lambda_instance_loss = 0.8
 
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + lambda_instance_loss*instance_loss
+
+
+
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) #+ lambda_instance_loss*instance_loss
 
         # print(f"Instance loss is {Ll1_instance}")
         loss.backward()
 
+
         # print("instance image shape: ", instance_image.shape)
         # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
 
-        # if iteration % 5 == 0:
+        if iteration % 5 == 0:
+            plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
             # plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
             # export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
@@ -200,9 +213,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
+        with torch.no_grad():
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+
 
 def prepare_output_and_logger(args):    
     if not args.model_path:
