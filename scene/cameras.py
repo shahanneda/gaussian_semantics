@@ -49,10 +49,10 @@ class Camera(nn.Module):
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
 
 
-        print("Instance Image Unique")
-        print(Camera.instance_number_to_index)
+        # print("Instance Image Unique")
+        # print(Camera.instance_number_to_index)
         instance_image_indexes = torch.searchsorted(Camera.instance_number_to_index, instance_image)
-        print(torch.unique(instance_image_indexes))
+        # print(torch.unique(instance_image_indexes))
         # print(instance_image_indexes.shape)
 
         # self.instance_image = (instance_image / torch.max(instance_image)).to(self.data_device)

@@ -12,6 +12,7 @@
 import os
 import torch
 from random import randint
+from scene.cameras import Camera
 from utils.loss_utils import l1_loss, ssim
 from gaussian_renderer import render, network_gui
 import sys
@@ -78,7 +79,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # print(torch.unique(gaussians.get_instance))
             # print(gaussians.get_instance)
             gt_instance_image = viewpoint_cam.instance_image.cuda()
-            export_instance_image(gt_instance_image, 5)
+            export_instance_image(gt_instance_image, Camera.number_instance_categories)
             gt_labels = torch.flatten(gt_instance_image, 1, 2)
         # print(torch.unique(gt_labels))
             # gt_labels = gt_labels * 4
@@ -87,7 +88,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             # print(instance_images[2])
 
-            if iteration % 2 == 0:
+            if iteration % 99 == 0:
                 for i, instance_image in enumerate(instance_images):
                     export_instance_image(instance_image, i)
 
@@ -185,7 +186,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # export_instance_image(instance_image.cpu().detach())
         # export_instance_image(gt_instance_image)
 
-        if iteration > 200 and iteration % 200 == 0:
+        if iteration > 500 and iteration % 500 == 0:
             do_instance_iterations()
 
 

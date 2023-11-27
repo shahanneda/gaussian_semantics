@@ -63,9 +63,10 @@ def loadCam(args, id, cam_info, resolution_scale, instance_only=False):
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
-    cam_infos_to_use = cam_infos[26:28]
+    # cam_infos_to_use = cam_infos[26:28]
+    cam_infos_to_use = cam_infos[0:600]
 
-    print("TODO: remove first 10 processing!!")
+    # print("TODO: remove first 10 processing!!")
     # for id, c in enumerate(cam_infos[:10]):
     for id, c in enumerate(cam_infos_to_use):
         loadCam(args, id, c, resolution_scale, instance_only=True)
