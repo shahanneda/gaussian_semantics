@@ -98,13 +98,15 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
-        image = Image.open(image_path)
+        image_file = Image.open(image_path)
+        image = image_file.copy()
+        image_file.close()
 
         instance_image_path = os.path.abspath(os.path.join(images_folder, "../rs_instance", image_name + ".png"))
-        instance_image = Image.open(instance_image_path)
+        instance_image_file = Image.open(instance_image_path)
+        instance_image = instance_image_file.copy()
+        instance_image_file.close()
 
-
-        
         # print(f"images folder {images_folder}\n")
         # print(f"loading image with {instance_image_path}\n")
         # print(f"loading image with {images_folder}\n")

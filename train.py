@@ -138,6 +138,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         iter_start.record()
         gaussians.update_learning_rate(iteration)
+
         # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
             gaussians.oneupSHdegree()
@@ -152,31 +153,23 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg, should_do_instance=False)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
-        # print("image shape is", image.permute(2, 1, 0).shape)
+        # Scaling regularizaion loss to encourge gaussians not have an extreme shape
+        scales = gaussians.get_scaling
+        scaling_loss = torch.maximum(
+            torch.amax(scales, dim=-1) / torch.amin(scales, dim=-1), 
+            torch.tensor(opt.scaling_loss_min)
+            ) - opt.scaling_loss_min
 
-        # print(f"mean instnace {torch.mean(gaussians.get_instance)} max instance {torch.max(gaussians.get_instance)} mode ins {torch.mode(gaussians.get_instance)}")
-        # print(f"ins min {torch.min(instance_image)}")
-        # print(f"ins max {torch.max(instance_image)}")
-        # print(f"ins unique {torch.unique(instance_image)}")
-        # print("gt: ", torch.unique(gt_instance_image))
-        # print("it: ", torch.unique(instance_image))
-        # Loss
+        scaling_loss = opt.lambda_scaling_loss*scaling_loss.mean()
+            
+
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
+        print("scaling loss is", scaling_loss)
 
-        # Ll1_instance = l1_loss(instance_image, gt_instance_image)
-        # Ll1_instance = 0 
-        lambda_instance_loss = 0.8
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + scaling_loss
 
-
-
-
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) #+ lambda_instance_loss*instance_loss
-
-        # print(f"Instance loss is {Ll1_instance}")
         loss.backward()
-
-
         # print("instance image shape: ", instance_image.shape)
         # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
 

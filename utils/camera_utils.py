@@ -61,10 +61,20 @@ def loadCam(args, id, cam_info, resolution_scale, instance_only=False):
                   image=gt_image, gt_alpha_mask=loaded_mask,
                   image_name=cam_info.image_name, uid=id, data_device=args.data_device, instance_image=gt_instance_image)
 
+import random
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
     # cam_infos_to_use = cam_infos[26:28]
-    cam_infos_to_use = cam_infos[0:600]
+    # cam_infos_to_use = cam_infos[:700]
+    cam_infos_to_use = []
+    # print(cam_infos)
+    print(len(cam_infos))
+
+    if not cam_infos:
+        cam_infos_to_use = []
+    else:
+        cam_infos_to_use = random.sample(cam_infos, 600)
+
 
     # print("TODO: remove first 10 processing!!")
     # for id, c in enumerate(cam_infos[:10]):
