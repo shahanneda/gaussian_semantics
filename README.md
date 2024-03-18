@@ -1,6 +1,7 @@
 # Semantic Gaussian Splatting
+### [Live Demo Link: https://shahan.ca/sgs](https://shahan.ca/sgs)
 
-This project is a fork of (gaussian splatting)[https://github.com/graphdeco-inria/gaussian-splatting] that adds semantic instance information to every single gaussian which is optimized during normal training by doing some extra training.
+This project is a fork of [gaussian splatting](https://github.com/graphdeco-inria/gaussian-splattin) that adds semantic instance information to every single gaussian which is optimized during normal training by doing some extra training.
 
 You can view a demo and mode detailed explaination of how it works here:
 
