@@ -152,10 +152,7 @@ class GaussianModel:
 
         opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
 
-        # TODO: consider removing activationg function
-        # instances = inverse_sigmoid(torch.zeros((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
         instances = torch.zeros((fused_point_cloud.shape[0], self.num_categories), dtype=torch.float, device="cuda")
-        print(instances.shape)
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
         self._features_dc = nn.Parameter(features[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
@@ -226,11 +223,8 @@ class GaussianModel:
         f_dc = self._features_dc.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         f_rest = self._features_rest.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
-        # TODO: add saving of instances here
         instances_raw = torch.sigmoid(self._instance.detach())
         instance = torch.argmax(instances_raw, dim=1).reshape((-1, 1)).cpu().numpy()
-        # print("SHAPE IS", instance.shape)
-        # print("O SHAPE IS",opacities.shape)
 
 
         scale = self._scaling.detach().cpu().numpy()
@@ -452,8 +446,6 @@ class GaussianModel:
         new_features_rest = self._features_rest[selected_pts_mask].repeat(N,1,1)
         new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
 
-        # TODO: fix this to be number of catogries instead!!!
-        print("DOING DENSIFY RN, should fix this todo")
         new_instance = self._instance[selected_pts_mask].repeat(N, 1)
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacity, new_instance, new_scaling, new_rotation)

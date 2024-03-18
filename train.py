@@ -38,7 +38,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     do_instance_only = False
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    # gaussians = GaussianModel(dataset.sh_degree)
     scene = Scene(dataset)
 
     gaussians = scene.gaussians
@@ -57,11 +56,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
+
     def export_instance_image(image, i):
-        # print(torch.unique(image))
         image = image / torch.max(image)
-        # print(torch.unique(image))
-        # print(torch.max(image))
         to_pil = ToPILImage()
         image_bw = to_pil(image)
         image_bw.save(f"test_output/instance_image-{i}.jpg")
@@ -76,17 +73,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             render_pkg = render(viewpoint_cam, gaussians, pipe, bg, should_do_instance=True)
             instance_images = render_pkg["instance_images"]
 
-            # print(torch.unique(gaussians.get_instance))
-            # print(gaussians.get_instance)
             gt_instance_image = viewpoint_cam.instance_image.cuda()
             export_instance_image(gt_instance_image, Camera.number_instance_categories)
             gt_labels = torch.flatten(gt_instance_image, 1, 2)
-        # print(torch.unique(gt_labels))
-            # gt_labels = gt_labels * 4
             gt_labels = gt_labels.to(torch.int64)
             gt_labels = gt_labels.reshape((-1))
 
-            # print(instance_images[2])
 
             if iteration % 99 == 0:
                 for i, instance_image in enumerate(instance_images):
@@ -103,23 +95,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     gaussians.instance_optimizer.step()
                     gaussians.instance_optimizer.zero_grad(set_to_none = True)
 
-    # do_instance_iterations()
-    # scene.save(1000)
-    # print(f"\nTraining complete. Saved to {output_path}")
-    # if do_instance_only:
-    #     print("Doing instance optimization only!")
-    #     for iteration in range(first_iter, opt.iterations + 1):        
-    #         if (iteration in saving_iterations):
-    #             print("\n[ITER {}] Saving Gaussians".format(iteration))
-    #             scene.save(iteration)
-
     if do_instance_only:
         do_instance_iterations(1000)
         print(f"\nTraining complete. Saved to {output_path}")
         scene.save(1000)
         return
 
-    # torch.autograd.set_detect_anomaly(True)
     for iteration in range(first_iter, opt.iterations + 1):        
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -153,7 +134,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg, should_do_instance=False)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
-        # Scaling regularizaion loss to encourge gaussians not have an extreme shape
+        # Scaling regularizaion loss to encourage gaussians not have an extreme shape
         scales = gaussians.get_scaling
         scaling_loss = torch.maximum(
             torch.amax(scales, dim=-1) / torch.amin(scales, dim=-1), 
@@ -170,22 +151,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + scaling_loss
 
         loss.backward()
-        # print("instance image shape: ", instance_image.shape)
-        # plt.imsave("test_output/image.jpg", image.permute(1, 2, 0).cpu().detach().numpy());
 
         if iteration % 200 == 0:
             plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
-            # plt.imsave(f"test_output/image.jpg", image.permute(1, 2, 0).clamp(0, 1).cpu().detach().numpy());
-            # export_instance_image(instance_image.cpu().detach())
-        # export_instance_image(gt_instance_image)
 
         if iteration > 500 and iteration % 500 == 0:
             do_instance_iterations()
-
-
-
-        # plt.imsave("test_output/image.jpg", gt_instance_image.permute(2, 1, 0).cpu().detach().numpy(), cmap="gray");
-        # plt.imsave("test_output/instance_image.jpg", image, cmap="gray");
 
         iter_end.record()
 
@@ -236,7 +207,6 @@ def prepare_output_and_logger(args):
             unique_str = str(uuid.uuid4())
         args.model_path = os.path.join("./output/", unique_str[0:10])
 
-        # TODO: remove this
         global output_path
         output_path = args.model_path
         
