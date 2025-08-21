@@ -6,7 +6,7 @@ This project is a fork of [gaussian splatting](https://github.com/graphdeco-inri
 You can view a demo and mode detailed explaination of how it works here:
 
 ## Videos
-[![video image](https://img.youtube.com/vi/-gLCdh0ZAGI/0.jpg)]([https://www.youtube.com/watch?v=-gLCdh0ZAGI)
+[![video image](https://img.youtube.com/vi/-gLCdh0ZAGI/0.jpg)](https://www.youtube.com/watch?v=-gLCdh0ZAGI)
 
 ## Photos
 <img src='https://github.com/shahanneda/gaussian_semantics/assets/17485954/53833679-833c-4f4b-8f93-e4cfbaecbd66)' width='400'>
